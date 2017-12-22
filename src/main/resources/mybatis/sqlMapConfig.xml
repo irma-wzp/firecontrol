@@ -6,10 +6,10 @@ PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
 
 	<!-- 批量别名 -->
 	<typeAliases>
-		<package name="com.henghao.entity.boundary"/>
-		<package name="com.henghao.vo"/>
-		<package name="com.henghao.mapper"/>
-		<package name="com.henghao.util"/>
+		<package name="com.henghao.entity.boundary" />
+		<package name="com.henghao.vo" />
+		<package name="com.henghao.mapper" />
+		<package name="com.henghao.util" />
 	</typeAliases>
 
 </configuration>
