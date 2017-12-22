@@ -1,0 +1,117 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:tx="http://www.springframework.org/schema/tx" xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jee="http://www.springframework.org/schema/jee"
+	xsi:schemaLocation="http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.0.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.0.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.0.xsd 
+		http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee.xsd">
+
+	<!-- 加载数据库配置文件 -->
+	<context:property-placeholder location="classpath:jdbc.properties" />
+	<!-- 数据源2：boundary====边界服务器数据库连接配置 -->
+	<bean id="dataSource_boundary" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+		<property name="driverClass" value="${jdbc.boundary.driverclass}"></property>
+		<property name="jdbcUrl" value="${jdbc.boundary.url}"></property>
+		<property name="user" value="${jdbc.boundary.username}"></property>
+		<property name="password" value="${jdbc.boundary.password}"></property>
+		<property name="maxPoolSize" value="${jdbc.boundary.maxPoolSize}"></property>
+		<property name="minPoolSize" value="${jdbc.boundary.minPoolSize}"></property>
+		<property name="initialPoolSize" value="${jdbc.boundary.initialPoolSize}"></property>
+		<property name="acquireIncrement" value="${jdbc.boundary.acquireIncrement}"></property>
+	
+		<!-- 每300秒检查所有连接池中的空闲连接。Default: 0 -->
+		<property name="idleConnectionTestPeriod" value="300" />
+		 <!--如果设为true那么在取得连接的同时将校验连接的有效性。Default: false -->
+		<property name="testConnectionOnCheckin" value="true" />
+		<!--c3p0将建一张名为Test的空表，并使用其自带的查询语句进行测试。如果定义了这个参数那么 属性preferredTestQuery将被忽略。
+		你不能在这张Test表上进行任何操作，它将只供c3p0测试使用。Default: null  -->
+		<property name="automaticTestTable" value="Test" />
+		
+		<!-- 通过配置 解决 The last packet sent successfully to the server was 0 milliseconds ago. ”的办法 -->
+		<!-- 
+		<property name="validationQuery" value="SELECT 1" />
+		<property name="testWhileIdle" value="true" />
+		<property name="timeBetweenEvictionRunsMillis" value="300000" />
+		<property name="numTestsPerEvictionRun" value="8" />
+		<property name="minEvictableIdleTimeMillis" value="3600000" />
+		 -->
+	</bean>
+
+	<!-- Hibernate SessionFactory2 Partner,配置来自于边界服务器的数据库的SessionFactory -->
+	<bean id="sessionFactory_boundary"
+		class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSource_boundary"></property>
+		<property name="packagesToScan">
+			<list>
+				<value>com.henghao.entity.boundary</value>
+			</list>
+		</property>
+		
+		<!-- xml -->
+		<property name="mappingResources">
+			<list>
+				<value>/com/henghao/hibernate/mapping/boundary/Ent_BaseInfo.hbm.xml</value>
+				<value>/com/henghao/hibernate/mapping/boundary/Ent_AS.hbm.xml</value>
+				<value>/com/henghao/hibernate/mapping/boundary/Ent_ZY.hbm.xml</value>
+				<value>/com/henghao/hibernate/mapping/boundary/Random_RY.hbm.xml</value>
+			</list>
+		</property>
+				
+		<property name="hibernateProperties">
+			<props>
+				<!-- 数据库的方言 -->
+				<prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+				<!-- 配置打印sql语句 false -->
+				<prop key="hibernate.show_sql">false</prop>
+				<!-- 配置格式化sql语句 -->
+				<prop key="hibernate.format_sql">true</prop>
+				<!-- 配置数据库表的生成方式 -->
+				<prop key="hibernate.hbm2ddl.auto">update</prop>
+				<!-- 配置是否开启二级缓存 -->
+				<prop key="hibernate.cache.use_second_level_cache">false</prop>
+				<!-- spring整合hibernate需要用currentsession -->
+				<prop key="hibernate.current_session_context_class">org.springframework.orm.hibernate4.SpringSessionContext
+				</prop>
+			</props>
+		</property>
+	</bean>
+
+	<!-- 配置hibernate事务管理 -->
+	<bean id="transactionManager_boundary"
+		class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+		<!-- 管理hibernate的session工厂 -->
+		<property name="sessionFactory" ref="sessionFactory_boundary"></property>
+	</bean>
+
+	<!-- 配置事务管理，非声明式（非注解）的方式 -->
+	<tx:advice id="txAdvice" transaction-manager="transactionManager_boundary">
+		<tx:attributes>
+			<tx:method name="add*" propagation="REQUIRED" />
+			<tx:method name="get*" propagation="REQUIRED" />
+			<tx:method name="select*" propagation="REQUIRED" />
+			<tx:method name="execute*" propagation="REQUIRED" />
+			<tx:method name="log*" propagation="REQUIRED" />
+			<tx:method name="save*" propagation="REQUIRED" />
+			<tx:method name="update*" propagation="REQUIRED" />
+			<tx:method name="delete*" propagation="REQUIRED" />
+			<!-- 除了以上方法的其他方法都为只读方法 -->
+			<tx:method name="*" read-only="false" />
+		</tx:attributes>
+	</tx:advice>
+
+	<!-- 配置aop，spring的事务管理是通过aop来实现的，如果不配置，则不能够获取到事物 -->
+	<aop:config expose-proxy="true">
+		<!-- 对业务逻辑层实施事物 -->
+		<aop:pointcut id="txPointcut"
+			expression="execution(* com.henghao.service.impl.*.*(..))" />
+		<!-- Advisor定义，切入点和通知分别为txPointcout、txAdvice -->
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="txPointcut" />
+	</aop:config>
+
+</beans>
+
